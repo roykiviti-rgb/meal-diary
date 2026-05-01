@@ -26,6 +26,14 @@ db.version(2).stores({
   entries: '++id, type, category, timestamp', // Primary key and indexed props
 });
 
+// Handle database upgrades smoothly without hanging
+db.on('versionchange', () => {
+  db.close();
+  if (typeof window !== 'undefined') {
+    window.location.reload();
+  }
+});
+
 export type { Dexie };
 export { db };
 
