@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Camera, Utensils, X, Image as ImageIcon, CalendarClock, Sparkles } from "lucide-react";
+import { Camera, Utensils, X, Image as ImageIcon, CalendarClock, Loader2 } from "lucide-react";
 import { addMeal, type MealCategory } from "@/lib/firebase";
 
 interface AddMealFormProps {
@@ -18,9 +18,9 @@ export default function AddMealForm({ onAdd }: AddMealFormProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [category, setCategory] = useState<MealCategory>("breakfast");
   const [description, setDescription] = useState("");
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [timestampStr, setTimestampStr] = useState(getLocalIsoString());
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
@@ -49,27 +49,8 @@ export default function AddMealForm({ onAdd }: AddMealFormProps) {
 
     setIsSubmitting(true);
     try {
-      let mealItems: string[] | undefined = undefined;
-      
-      // Call AI to analyze meal
-      try {
-        const res = await fetch("/api/analyze-meal", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ description, imageBase64: imagePreview }),
-        });
-        if (res.ok) {
-          const data = await res.json();
-          if (data.items && data.items.length > 0) {
-            mealItems = data.items;
-          }
-        }
-      } catch (err) {
-        console.error("Failed to analyze meal with AI:", err);
-      }
-
       const timestamp = new Date(timestampStr).getTime();
-      await addMeal(category, description, imagePreview || undefined, mealItems, timestamp);
+      await addMeal(category, description, imagePreview || undefined, undefined, timestamp);
       
       setIsOpen(false);
       setDescription("");
@@ -147,7 +128,7 @@ export default function AddMealForm({ onAdd }: AddMealFormProps) {
         <textarea
           value={description}
           onChange={(e) => setDescription(e.target.value)}
-          placeholder="מה אכלת? (ה-AI שלנו יזהה את המרכיבים אוטומטית)"
+          placeholder="מה אכלת?"
           className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-3 text-slate-800 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 resize-none"
           rows={3}
         />
@@ -203,17 +184,15 @@ export default function AddMealForm({ onAdd }: AddMealFormProps) {
               onChange={handleImageChange}
             />
           </div>
-        )}
-
-        <button
+        )}        <button
           type="submit"
           disabled={(!description.trim() && !imagePreview) || isSubmitting}
           className="w-full py-3 flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 dark:disabled:bg-slate-700 text-white rounded-xl font-medium transition-colors"
         >
           {isSubmitting ? (
             <>
-              <Sparkles className="w-5 h-5 animate-pulse" />
-              <span>מנתח ושומר...</span>
+              <Loader2 className="w-5 h-5 animate-spin" />
+              <span>שומר...</span>
             </>
           ) : (
             <span>שמירת ארוחה</span>

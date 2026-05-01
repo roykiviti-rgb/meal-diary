@@ -65,6 +65,7 @@ export default function Home() {
   const [isAuthLoading, setIsAuthLoading] = useState(true);
   const [entries, setEntries] = useState<DiaryEntry[]>([]);
   const [activeFilter, setActiveFilter] = useState<FilterType>("all");
+  const [selectedDate, setSelectedDate] = useState<string>("");
   const [isLoading, setIsLoading] = useState(true);
   const [importStatus, setImportStatus] = useState<{ type: "success" | "error"; message: string } | null>(null);
   const [isImporting, setIsImporting] = useState(false);
@@ -152,10 +153,24 @@ export default function Home() {
   };
 
   const filteredEntries = entries.filter((entry) => {
-    if (activeFilter === "all") return true;
-    if (activeFilter === "nausea")
-      return entry.type === "symptom" && entry.symptomType === "nausea";
-    return entry.type === "meal" && entry.category === activeFilter;
+    // Check category filter
+    if (activeFilter !== "all") {
+      if (activeFilter === "nausea" && (entry.type !== "symptom" || entry.symptomType !== "nausea")) return false;
+      if (activeFilter !== "nausea" && (entry.type !== "meal" || entry.category !== activeFilter)) return false;
+    }
+    
+    // Check date filter
+    if (selectedDate) {
+      // Create a local date string in YYYY-MM-DD format based on local timezone
+      const entryDate = new Date(entry.timestamp);
+      const localDateStr = new Date(entryDate.getTime() - entryDate.getTimezoneOffset() * 60000)
+        .toISOString()
+        .split('T')[0];
+        
+      if (localDateStr !== selectedDate) return false;
+    }
+    
+    return true;
   });
 
   // Group by date
@@ -268,10 +283,31 @@ export default function Home() {
           </div>
         )}
 
-        <FilterBar
-          activeFilter={activeFilter}
-          onFilterChange={setActiveFilter}
-        />
+        <div className="flex flex-col sm:flex-row gap-4 mt-4 items-start sm:items-center">
+          <FilterBar
+            activeFilter={activeFilter}
+            onFilterChange={setActiveFilter}
+          />
+          
+          <div className="flex items-center gap-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-1 shadow-sm shrink-0">
+            <span className="text-sm text-slate-500 font-medium">תאריך:</span>
+            <input
+              type="date"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              className="bg-transparent border-none text-sm text-slate-700 dark:text-slate-200 focus:ring-0 outline-none p-1"
+            />
+            {selectedDate && (
+              <button 
+                onClick={() => setSelectedDate("")}
+                className="text-xs text-slate-400 hover:text-red-500 mr-2 p-1"
+                title="נקה תאריך"
+              >
+                <XCircle className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+        </div>
       </header>
 
       <main className="flex-1 p-6 max-w-2xl mx-auto w-full space-y-8">
