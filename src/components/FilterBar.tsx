@@ -1,6 +1,6 @@
 "use client";
 
-import { type MealCategory } from "@/lib/db";
+import { type MealCategory } from "@/lib/firebase";
 
 export type FilterType = "all" | MealCategory | "nausea";
 
