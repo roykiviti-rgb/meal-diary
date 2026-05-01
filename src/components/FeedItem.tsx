@@ -1,6 +1,6 @@
 "use client";
 
-import { Clock, Utensils, AlertCircle, Trash2 } from "lucide-react";
+import { Clock, Utensils, AlertCircle, Trash2, CheckCircle2 } from "lucide-react";
 import { type DiaryEntry, deleteEntry } from "@/lib/db";
 
 interface FeedItemProps {
@@ -66,6 +66,20 @@ export default function FeedItem({ entry, onDelete }: FeedItemProps) {
           <Trash2 className="w-4 h-4" />
         </button>
       </div>
+
+      {entry.mealItems && entry.mealItems.length > 0 && (
+        <div className="flex flex-wrap gap-2 mb-3">
+          {entry.mealItems.map((item, idx) => (
+            <span 
+              key={idx} 
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 text-xs font-medium border border-emerald-200 dark:border-emerald-500/20"
+            >
+              <CheckCircle2 className="w-3 h-3" />
+              {item}
+            </span>
+          ))}
+        </div>
+      )}
 
       {entry.description && (
         <p className="text-slate-600 dark:text-slate-300 text-sm mt-2 mb-3 leading-relaxed">

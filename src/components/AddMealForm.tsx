@@ -1,11 +1,17 @@
 "use client";
 
-import { useState, useRef } from "react";
-import { Camera, Utensils, X, Image as ImageIcon } from "lucide-react";
+import { useState, useRef, useEffect } from "react";
+import { Camera, Utensils, X, Image as ImageIcon, CalendarClock, Sparkles } from "lucide-react";
 import { addMeal, type MealCategory } from "@/lib/db";
 
 interface AddMealFormProps {
   onAdd: () => void;
+}
+
+function getLocalIsoString() {
+  const now = new Date();
+  now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+  return now.toISOString().slice(0, 16);
 }
 
 export default function AddMealForm({ onAdd }: AddMealFormProps) {
@@ -14,7 +20,17 @@ export default function AddMealForm({ onAdd }: AddMealFormProps) {
   const [description, setDescription] = useState("");
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [timestampStr, setTimestampStr] = useState(getLocalIsoString());
+  
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+
+  // Reset state when opened
+  useEffect(() => {
+    if (isOpen) {
+      setTimestampStr(getLocalIsoString());
+    }
+  }, [isOpen]);
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -29,11 +45,32 @@ export default function AddMealForm({ onAdd }: AddMealFormProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!description.trim() && !imagePreview) return; // Need at least one
+    if (!description.trim() && !imagePreview) return;
 
     setIsSubmitting(true);
     try {
-      await addMeal(category, description, imagePreview || undefined);
+      let mealItems: string[] | undefined = undefined;
+      
+      // Call AI to analyze meal
+      try {
+        const res = await fetch("/api/analyze-meal", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ description, imageBase64: imagePreview }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.items && data.items.length > 0) {
+            mealItems = data.items;
+          }
+        }
+      } catch (err) {
+        console.error("Failed to analyze meal with AI:", err);
+      }
+
+      const timestamp = new Date(timestampStr).getTime();
+      await addMeal(category, description, imagePreview || undefined, mealItems, timestamp);
+      
       setIsOpen(false);
       setDescription("");
       setImagePreview(null);
@@ -73,6 +110,16 @@ export default function AddMealForm({ onAdd }: AddMealFormProps) {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2">
+          <CalendarClock className="w-5 h-5 text-slate-400" />
+          <input 
+            type="datetime-local" 
+            value={timestampStr}
+            onChange={(e) => setTimestampStr(e.target.value)}
+            className="bg-transparent border-none focus:ring-0 text-slate-700 dark:text-slate-200 text-sm w-full outline-none"
+          />
+        </div>
+
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
           {(
             [
@@ -100,7 +147,7 @@ export default function AddMealForm({ onAdd }: AddMealFormProps) {
         <textarea
           value={description}
           onChange={(e) => setDescription(e.target.value)}
-          placeholder="מה אכלת?"
+          placeholder="מה אכלת? (ה-AI שלנו יזהה את המרכיבים אוטומטית)"
           className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-3 text-slate-800 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 resize-none"
           rows={3}
         />
@@ -125,12 +172,29 @@ export default function AddMealForm({ onAdd }: AddMealFormProps) {
           <div className="flex gap-2">
             <button
               type="button"
-              onClick={() => fileInputRef.current?.click()}
+              onClick={() => cameraInputRef.current?.click()}
               className="flex-1 flex items-center justify-center gap-2 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 border-dashed rounded-xl text-slate-500 hover:text-indigo-600 hover:border-indigo-300 transition-colors"
             >
               <Camera className="w-5 h-5" />
-              <span>צילום או העלאת תמונה</span>
+              <span>צילום</span>
             </button>
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="flex-1 flex items-center justify-center gap-2 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 border-dashed rounded-xl text-slate-500 hover:text-indigo-600 hover:border-indigo-300 transition-colors"
+            >
+              <ImageIcon className="w-5 h-5" />
+              <span>גלריה</span>
+            </button>
+            
+            <input
+              type="file"
+              accept="image/*"
+              capture="environment"
+              className="hidden"
+              ref={cameraInputRef}
+              onChange={handleImageChange}
+            />
             <input
               type="file"
               accept="image/*"
@@ -144,9 +208,16 @@ export default function AddMealForm({ onAdd }: AddMealFormProps) {
         <button
           type="submit"
           disabled={(!description.trim() && !imagePreview) || isSubmitting}
-          className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 dark:disabled:bg-slate-700 text-white rounded-xl font-medium transition-colors"
+          className="w-full py-3 flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 dark:disabled:bg-slate-700 text-white rounded-xl font-medium transition-colors"
         >
-          {isSubmitting ? "שומר..." : "שמירת ארוחה"}
+          {isSubmitting ? (
+            <>
+              <Sparkles className="w-5 h-5 animate-pulse" />
+              <span>מנתח ושומר...</span>
+            </>
+          ) : (
+            <span>שמירת ארוחה</span>
+          )}
         </button>
       </form>
     </div>

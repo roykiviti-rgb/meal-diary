@@ -9,6 +9,7 @@ export interface DiaryEntry {
   category?: MealCategory; // Only for meals
   description?: string; // Text description
   imageBase64?: string; // Base64 encoded image
+  mealItems?: string[]; // Extracted meal items by AI
   symptomType?: string; // e.g., 'nausea'
   timestamp: number; // Unix timestamp
 }
@@ -21,7 +22,7 @@ const db = new Dexie('MealSymptomDiary') as Dexie & {
 };
 
 // Schema declaration
-db.version(1).stores({
+db.version(2).stores({
   entries: '++id, type, category, timestamp', // Primary key and indexed props
 });
 
@@ -34,6 +35,7 @@ export async function addMeal(
   category: MealCategory,
   description?: string,
   imageBase64?: string,
+  mealItems?: string[],
   timestamp?: number
 ) {
   return await db.entries.add({
@@ -41,6 +43,7 @@ export async function addMeal(
     category,
     description,
     imageBase64,
+    mealItems,
     timestamp: timestamp || Date.now(),
   });
 }
