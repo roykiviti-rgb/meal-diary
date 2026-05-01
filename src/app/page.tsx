@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import AddMealForm from "@/components/AddMealForm";
 import QuickNauseaButton from "@/components/QuickNauseaButton";
 import FilterBar, { type FilterType } from "@/components/FilterBar";
 import FeedItem from "@/components/FeedItem";
-import { getAllEntries, type DiaryEntry } from "@/lib/db";
-import { Download } from "lucide-react";
+import { getAllEntries, addMeal, addSymptom, type DiaryEntry, type MealCategory } from "@/lib/db";
+import { Download, Upload, CheckCircle2, XCircle } from "lucide-react";
 
 const categoryLabels: Record<string, string> = {
   breakfast: "בוקר",
@@ -15,9 +15,17 @@ const categoryLabels: Record<string, string> = {
   snack: "נשנוש",
 };
 
+// Reverse map: Hebrew label → English key
+const hebrewToCategory: Record<string, MealCategory> = {
+  "בוקר": "breakfast",
+  "צהריים": "lunch",
+  "ערב": "dinner",
+  "נשנוש": "snack",
+};
+
 async function exportToExcel(entries: DiaryEntry[]) {
   const XLSX = await import("xlsx");
-  
+
   const rows = entries.map((e) => ({
     "תאריך": new Date(e.timestamp).toLocaleDateString("he-IL"),
     "שעה": new Date(e.timestamp).toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" }),
@@ -32,7 +40,6 @@ async function exportToExcel(entries: DiaryEntry[]) {
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "יומן");
 
-  // Set column widths
   ws["!cols"] = [
     { wch: 14 }, { wch: 8 }, { wch: 8 }, { wch: 10 },
     { wch: 30 }, { wch: 40 }, { wch: 12 },
@@ -41,10 +48,25 @@ async function exportToExcel(entries: DiaryEntry[]) {
   XLSX.writeFile(wb, "יומן-ארוחות.xlsx");
 }
 
+// Parse a Hebrew date/time like "1/5/2026" + "15:44" into a timestamp
+function parseHebrewDateTime(dateStr: string, timeStr: string): number {
+  try {
+    // he-IL date format: D/M/YYYY
+    const [day, month, year] = String(dateStr).split("/").map(Number);
+    const [hours, minutes] = String(timeStr).split(":").map(Number);
+    const d = new Date(year, month - 1, day, hours || 0, minutes || 0);
+    if (!isNaN(d.getTime())) return d.getTime();
+  } catch (_) { /* ignore */ }
+  return Date.now();
+}
+
 export default function Home() {
   const [entries, setEntries] = useState<DiaryEntry[]>([]);
   const [activeFilter, setActiveFilter] = useState<FilterType>("all");
   const [isLoading, setIsLoading] = useState(true);
+  const [importStatus, setImportStatus] = useState<{ type: "success" | "error"; message: string } | null>(null);
+  const [isImporting, setIsImporting] = useState(false);
+  const importInputRef = useRef<HTMLInputElement>(null);
 
   const loadEntries = async () => {
     try {
@@ -60,6 +82,64 @@ export default function Home() {
   useEffect(() => {
     loadEntries();
   }, []);
+
+  const handleImportExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Reset the input so the same file can be re-selected if needed
+    e.target.value = "";
+
+    setIsImporting(true);
+    setImportStatus(null);
+
+    try {
+      const XLSX = await import("xlsx");
+      const buffer = await file.arrayBuffer();
+      const wb = XLSX.read(buffer, { type: "array" });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const rows: any[] = XLSX.utils.sheet_to_json(ws);
+
+      if (rows.length === 0) {
+        setImportStatus({ type: "error", message: "הקובץ ריק או בפורמט לא מזוהה." });
+        return;
+      }
+
+      let imported = 0;
+      for (const row of rows) {
+        const type = String(row["סוג"] || "").trim();
+        const dateStr = String(row["תאריך"] || "").trim();
+        const timeStr = String(row["שעה"] || "00:00").trim();
+        const timestamp = parseHebrewDateTime(dateStr, timeStr);
+
+        if (type === "ארוחה") {
+          const categoryHebrew = String(row["קטגוריה"] || "").trim();
+          const category: MealCategory = hebrewToCategory[categoryHebrew] || "snack";
+          const description = String(row["תיאור"] || "").trim() || undefined;
+          const mealItemsRaw = String(row["מרכיבים (AI)"] || "").trim();
+          const mealItems = mealItemsRaw ? mealItemsRaw.split(",").map((s: string) => s.trim()).filter(Boolean) : undefined;
+          await addMeal(category, description, undefined, mealItems, timestamp);
+          imported++;
+        } else if (type === "תסמין") {
+          const levelRaw = row["עוצמת בחילה"];
+          const nauseaLevel = levelRaw !== undefined && levelRaw !== "" ? Number(levelRaw) : undefined;
+          await addSymptom("nausea", undefined, nauseaLevel, timestamp);
+          imported++;
+        }
+      }
+
+      setImportStatus({ type: "success", message: `יובאו בהצלחה ${imported} רשומות!` });
+      await loadEntries();
+    } catch (err) {
+      console.error("Import failed", err);
+      setImportStatus({ type: "error", message: "שגיאה בקריאת הקובץ. ודא שהוא יוצא מהאפליקציה הזו." });
+    } finally {
+      setIsImporting(false);
+      // Auto-dismiss success after 4 seconds
+      setTimeout(() => setImportStatus(null), 4000);
+    }
+  };
 
   const filteredEntries = entries.filter((entry) => {
     if (activeFilter === "all") return true;
@@ -90,25 +170,60 @@ export default function Home() {
           <h1 className="text-3xl font-bold tracking-tight text-indigo-600 dark:text-indigo-400">
             יומן ארוחות ותסמינים
           </h1>
-          <button
-            onClick={() => exportToExcel(entries)}
-            title="ייצוא ל-Excel"
-            className="flex items-center gap-2 px-3 py-2 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/20 hover:bg-emerald-100 dark:hover:bg-emerald-500/20 transition-colors text-sm font-medium"
-          >
-            <Download className="w-4 h-4" />
-            <span className="hidden sm:inline">ייצוא Excel</span>
-          </button>
+          <div className="flex gap-2">
+            {/* Import Button */}
+            <button
+              onClick={() => importInputRef.current?.click()}
+              disabled={isImporting}
+              title="ייבוא מ-Excel"
+              className="flex items-center gap-2 px-3 py-2 rounded-xl bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-500/20 hover:bg-blue-100 dark:hover:bg-blue-500/20 transition-colors text-sm font-medium disabled:opacity-50"
+            >
+              <Upload className="w-4 h-4" />
+              <span className="hidden sm:inline">{isImporting ? "מייבא..." : "ייבוא Excel"}</span>
+            </button>
+            <input
+              ref={importInputRef}
+              type="file"
+              accept=".xlsx,.xls"
+              className="hidden"
+              onChange={handleImportExcel}
+            />
+
+            {/* Export Button */}
+            <button
+              onClick={() => exportToExcel(entries)}
+              title="ייצוא ל-Excel"
+              className="flex items-center gap-2 px-3 py-2 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/20 hover:bg-emerald-100 dark:hover:bg-emerald-500/20 transition-colors text-sm font-medium"
+            >
+              <Download className="w-4 h-4" />
+              <span className="hidden sm:inline">ייצוא Excel</span>
+            </button>
+          </div>
         </div>
-        <p className="text-slate-500 dark:text-slate-400 mb-6">
+        <p className="text-slate-500 dark:text-slate-400 mb-4">
           מעקב יומי אחר התזונה וההרגשה שלך
         </p>
-        
+
+        {/* Import status toast */}
+        {importStatus && (
+          <div className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium mb-4 animate-in fade-in slide-in-from-top-2 duration-300 ${
+            importStatus.type === "success"
+              ? "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/20"
+              : "bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-500/20"
+          }`}>
+            {importStatus.type === "success"
+              ? <CheckCircle2 className="w-4 h-4 shrink-0" />
+              : <XCircle className="w-4 h-4 shrink-0" />}
+            {importStatus.message}
+          </div>
+        )}
+
         <FilterBar
           activeFilter={activeFilter}
           onFilterChange={setActiveFilter}
         />
       </header>
-      
+
       <main className="flex-1 p-6 max-w-2xl mx-auto w-full space-y-8">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="md:col-span-2">
@@ -151,3 +266,5 @@ export default function Home() {
     </div>
   );
 }
+
+
