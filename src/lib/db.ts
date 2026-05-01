@@ -11,6 +11,7 @@ export interface DiaryEntry {
   imageBase64?: string; // Base64 encoded image
   mealItems?: string[]; // Extracted meal items by AI
   symptomType?: string; // e.g., 'nausea'
+  nauseaLevel?: number; // 1-5 severity rating
   timestamp: number; // Unix timestamp
 }
 
@@ -22,7 +23,7 @@ const db = new Dexie('MealSymptomDiary') as Dexie & {
 };
 
 // Schema declaration
-db.version(2).stores({
+db.version(3).stores({
   entries: '++id, type, category, timestamp', // Primary key and indexed props
 });
 
@@ -59,12 +60,14 @@ export async function addMeal(
 export async function addSymptom(
   symptomType: string = 'nausea',
   description?: string,
+  nauseaLevel?: number,
   timestamp?: number
 ) {
   return await db.entries.add({
     type: 'symptom',
     symptomType,
     description,
+    nauseaLevel,
     timestamp: timestamp || Date.now(),
   });
 }

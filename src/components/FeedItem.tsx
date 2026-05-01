@@ -46,10 +46,15 @@ export default function FeedItem({ entry, onDelete }: FeedItemProps) {
             {isMeal ? <Utensils className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
           </div>
           <div>
-            <h4 className="font-semibold text-slate-800 dark:text-slate-100">
+            <h4 className="font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-2">
               {isMeal
                 ? `ארוחת ${categoryLabels[entry.category || "snack"]}`
                 : "בחילה"}
+              {!isMeal && entry.nauseaLevel && (
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-red-100 dark:bg-red-500/20 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-500/30">
+                  עוצמה {entry.nauseaLevel}/5
+                </span>
+              )}
             </h4>
             <div className="flex items-center text-xs text-slate-500 dark:text-slate-400 mt-0.5 gap-1">
               <Clock className="w-3 h-3" />
