@@ -5,8 +5,8 @@ import AddMealForm from "@/components/AddMealForm";
 import QuickNauseaButton from "@/components/QuickNauseaButton";
 import FilterBar, { type FilterType } from "@/components/FilterBar";
 import FeedItem from "@/components/FeedItem";
-import { getAllEntries, addMeal, addSymptom, type DiaryEntry, type MealCategory } from "@/lib/db";
-import { Download, Upload, CheckCircle2, XCircle } from "lucide-react";
+import { getAllEntries, addMeal, addSymptom, auth, onAuthStateChanged, signInWithGoogle, signOutUser, type User, type DiaryEntry, type MealCategory } from "@/lib/firebase";
+import { Download, Upload, CheckCircle2, XCircle, LogOut } from "lucide-react";
 
 const categoryLabels: Record<string, string> = {
   breakfast: "בוקר",
@@ -61,6 +61,8 @@ function parseHebrewDateTime(dateStr: string, timeStr: string): number {
 }
 
 export default function Home() {
+  const [user, setUser] = useState<User | null>(null);
+  const [isAuthLoading, setIsAuthLoading] = useState(true);
   const [entries, setEntries] = useState<DiaryEntry[]>([]);
   const [activeFilter, setActiveFilter] = useState<FilterType>("all");
   const [isLoading, setIsLoading] = useState(true);
@@ -70,6 +72,7 @@ export default function Home() {
 
   const loadEntries = async () => {
     try {
+      setIsLoading(true);
       const data = await getAllEntries();
       setEntries(data);
     } catch (error) {
@@ -80,7 +83,14 @@ export default function Home() {
   };
 
   useEffect(() => {
-    loadEntries();
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+      setIsAuthLoading(false);
+      if (currentUser) {
+        loadEntries();
+      }
+    });
+    return () => unsubscribe();
   }, []);
 
   const handleImportExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -163,6 +173,36 @@ export default function Home() {
     groupedEntries[dateStr].push(entry);
   });
 
+  if (isAuthLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900">
+        <div className="text-slate-500 animate-pulse text-lg font-medium">טוען...</div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-900 p-6 text-center">
+        <div className="bg-white dark:bg-slate-800 p-8 rounded-3xl shadow-xl max-w-sm w-full space-y-6">
+          <div className="mx-auto w-16 h-16 bg-indigo-100 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 rounded-full flex items-center justify-center mb-4">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12.545,10.239v3.821h5.445c-0.712,2.315-2.647,3.972-5.445,3.972c-3.332,0-6.033-2.701-6.033-6.032s2.701-6.032,6.033-6.032c1.498,0,2.866,0.549,3.921,1.453l2.814-2.814C17.503,2.988,15.139,2,12.545,2C7.021,2,2.543,6.477,2.543,12s4.478,10,10.002,10c8.396,0,10.249-7.85,9.426-11.748L12.545,10.239z"/>
+            </svg>
+          </div>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-50">יומן ארוחות</h1>
+          <p className="text-slate-500 dark:text-slate-400">התחבר כדי לשמור ולסנכרן את היומן שלך מכל מכשיר.</p>
+          <button
+            onClick={() => signInWithGoogle().catch(console.error)}
+            className="w-full py-3 px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-xl transition-colors"
+          >
+            התחברות עם Google
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col min-h-screen bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-50">
       <header className="px-6 py-8 bg-white dark:bg-slate-800 shadow-sm border-b border-slate-200 dark:border-slate-700 sticky top-0 z-10">
@@ -197,6 +237,16 @@ export default function Home() {
             >
               <Download className="w-4 h-4" />
               <span className="hidden sm:inline">ייצוא Excel</span>
+            </button>
+            
+            {/* Log Out Button */}
+            <button
+              onClick={() => signOutUser().catch(console.error)}
+              title="התנתק"
+              className="flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors text-sm font-medium mr-2"
+            >
+              <LogOut className="w-4 h-4" />
+              <span className="hidden sm:inline">התנתק</span>
             </button>
           </div>
         </div>

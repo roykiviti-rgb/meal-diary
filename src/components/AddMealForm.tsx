@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { Camera, Utensils, X, Image as ImageIcon, CalendarClock, Sparkles } from "lucide-react";
-import { addMeal, type MealCategory } from "@/lib/db";
+import { addMeal, type MealCategory } from "@/lib/firebase";
 
 interface AddMealFormProps {
   onAdd: () => void;

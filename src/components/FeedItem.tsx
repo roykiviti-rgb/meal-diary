@@ -1,7 +1,7 @@
 "use client";
 
 import { Clock, Utensils, AlertCircle, Trash2, CheckCircle2 } from "lucide-react";
-import { type DiaryEntry, deleteEntry } from "@/lib/db";
+import { type DiaryEntry, deleteEntry } from "@/lib/firebase";
 
 interface FeedItemProps {
   entry: DiaryEntry;
@@ -15,7 +15,7 @@ export default function FeedItem({ entry, onDelete }: FeedItemProps) {
   const handleDelete = async () => {
     if (!entry.id) return;
     if (confirm("האם ברצונך למחוק רשומה זו?")) {
-      await deleteEntry(entry.id);
+      await deleteEntry(entry.id as string);
       onDelete();
     }
   };
@@ -92,11 +92,11 @@ export default function FeedItem({ entry, onDelete }: FeedItemProps) {
         </p>
       )}
 
-      {entry.imageBase64 && (
+      {(entry.imageUrl || entry.imageBase64) && (
         <div className="mt-3 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src={entry.imageBase64}
+            src={entry.imageUrl || entry.imageBase64}
             alt="תמונת ארוחה"
             className="w-full max-h-64 object-cover"
           />
