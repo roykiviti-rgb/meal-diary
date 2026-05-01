@@ -221,11 +221,11 @@ export default function Home() {
   return (
     <div className="flex flex-col min-h-screen bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-50">
       <header className="px-6 py-8 bg-white dark:bg-slate-800 shadow-sm border-b border-slate-200 dark:border-slate-700 sticky top-0 z-10">
-        <div className="flex justify-between items-start mb-2">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-2">
           <h1 className="text-3xl font-bold tracking-tight text-indigo-600 dark:text-indigo-400">
             יומן ארוחות ותסמינים
           </h1>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             {/* Import Button */}
             <button
               onClick={() => importInputRef.current?.click()}
@@ -258,7 +258,7 @@ export default function Home() {
             <button
               onClick={() => signOutUser().catch(console.error)}
               title="התנתק"
-              className="flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors text-sm font-medium mr-2"
+              className="flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors text-sm font-medium"
             >
               <LogOut className="w-4 h-4" />
               <span className="hidden sm:inline">התנתק</span>
@@ -283,24 +283,24 @@ export default function Home() {
           </div>
         )}
 
-        <div className="flex flex-col sm:flex-row gap-4 mt-4 items-start sm:items-center">
+        <div className="mt-4 space-y-4">
           <FilterBar
             activeFilter={activeFilter}
             onFilterChange={setActiveFilter}
           />
           
-          <div className="flex items-center gap-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-1 shadow-sm shrink-0">
-            <span className="text-sm text-slate-500 font-medium">תאריך:</span>
+          <div className="flex items-center gap-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 shadow-sm w-fit max-w-full">
+            <span className="text-sm text-slate-500 font-medium shrink-0">תאריך:</span>
             <input
               type="date"
               value={selectedDate}
               onChange={(e) => setSelectedDate(e.target.value)}
-              className="bg-transparent border-none text-sm text-slate-700 dark:text-slate-200 focus:ring-0 outline-none p-1"
+              className="bg-transparent border-none text-sm text-slate-700 dark:text-slate-200 focus:ring-0 outline-none p-0 w-full"
             />
             {selectedDate && (
               <button 
                 onClick={() => setSelectedDate("")}
-                className="text-xs text-slate-400 hover:text-red-500 mr-2 p-1"
+                className="text-slate-400 hover:text-red-500 mr-2 p-1 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors shrink-0"
                 title="נקה תאריך"
               >
                 <XCircle className="w-4 h-4" />
