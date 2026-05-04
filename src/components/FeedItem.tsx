@@ -1,6 +1,6 @@
 "use client";
 
-import { Clock, Utensils, AlertCircle, Trash2, CheckCircle2 } from "lucide-react";
+import { Clock, Utensils, AlertCircle, Activity, Trash2, CheckCircle2 } from "lucide-react";
 import { type DiaryEntry, deleteEntry } from "@/lib/firebase";
 
 interface FeedItemProps {
@@ -11,6 +11,7 @@ interface FeedItemProps {
 export default function FeedItem({ entry, onDelete }: FeedItemProps) {
   const isMeal = entry.type === "meal";
   const isNausea = entry.type === "symptom" && entry.symptomType === "nausea";
+  const isPain = entry.type === "symptom" && entry.symptomType === "pain";
 
   const handleDelete = async () => {
     if (!entry.id) return;
@@ -40,19 +41,28 @@ export default function FeedItem({ entry, onDelete }: FeedItemProps) {
             className={`p-2 rounded-full ${
               isMeal
                 ? "bg-indigo-100 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400"
+                : isPain
+                ? "bg-orange-100 dark:bg-orange-500/20 text-orange-600 dark:text-orange-400"
                 : "bg-red-100 dark:bg-red-500/20 text-red-600 dark:text-red-400"
             }`}
           >
-            {isMeal ? <Utensils className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
+            {isMeal ? <Utensils className="w-4 h-4" /> : isPain ? <Activity className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
           </div>
           <div>
             <h4 className="font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-2">
               {isMeal
                 ? `ארוחת ${categoryLabels[entry.category || "snack"]}`
+                : isPain
+                ? "כאב"
                 : "בחילה"}
               {!isMeal && entry.nauseaLevel && (
                 <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-red-100 dark:bg-red-500/20 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-500/30">
                   עוצמה {entry.nauseaLevel}/5
+                </span>
+              )}
+              {!isMeal && entry.painLevel && (
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-orange-100 dark:bg-orange-500/20 text-orange-700 dark:text-orange-400 border border-orange-200 dark:border-orange-500/30">
+                  עוצמה {entry.painLevel}/5
                 </span>
               )}
             </h4>

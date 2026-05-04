@@ -2,7 +2,7 @@
 
 import { type MealCategory } from "@/lib/firebase";
 
-export type FilterType = "all" | MealCategory | "nausea";
+export type FilterType = "all" | MealCategory | "nausea" | "pain";
 
 interface FilterBarProps {
   activeFilter: FilterType;
@@ -20,6 +20,7 @@ export default function FilterBar({
     { id: "dinner", label: "ערב" },
     { id: "snack", label: "נשנוש" },
     { id: "nausea", label: "בחילות" },
+    { id: "pain", label: "כאבים" },
   ];
 
   return (

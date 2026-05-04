@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import AddMealForm from "@/components/AddMealForm";
 import QuickNauseaButton from "@/components/QuickNauseaButton";
+import QuickPainButton from "@/components/QuickPainButton";
 import FilterBar, { type FilterType } from "@/components/FilterBar";
 import FeedItem from "@/components/FeedItem";
 import { getAllEntries, addMeal, addSymptom, auth, onAuthStateChanged, signInWithGoogle, signOutUser, type User, type DiaryEntry, type MealCategory } from "@/lib/firebase";
@@ -30,10 +31,10 @@ async function exportToExcel(entries: DiaryEntry[]) {
     "תאריך": new Date(e.timestamp).toLocaleDateString("he-IL"),
     "שעה": new Date(e.timestamp).toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" }),
     "סוג": e.type === "meal" ? "ארוחה" : "תסמין",
-    "קטגוריה": e.type === "meal" ? categoryLabels[e.category || "snack"] : "בחילה",
+    "קטגוריה": e.type === "meal" ? categoryLabels[e.category || "snack"] : (e.symptomType === "pain" ? "כאב" : "בחילה"),
     "תיאור": e.description || "",
     "מרכיבים (AI)": e.mealItems?.join(", ") || "",
-    "עוצמת בחילה": e.nauseaLevel ?? "",
+    "עוצמת בחילה/כאב": e.nauseaLevel || e.painLevel || "",
   }));
 
   const ws = XLSX.utils.json_to_sheet(rows);
@@ -133,9 +134,12 @@ export default function Home() {
           await addMeal(category, description, undefined, mealItems, timestamp);
           imported++;
         } else if (type === "תסמין") {
-          const levelRaw = row["עוצמת בחילה"];
-          const nauseaLevel = levelRaw !== undefined && levelRaw !== "" ? Number(levelRaw) : undefined;
-          await addSymptom("nausea", undefined, nauseaLevel, timestamp);
+          const categoryHebrew = String(row["קטגוריה"] || "").trim();
+          const isPain = categoryHebrew === "כאב";
+          const levelRaw = row["עוצמת בחילה/כאב"] ?? row["עוצמת בחילה"];
+          const level = levelRaw !== undefined && levelRaw !== "" ? Number(levelRaw) : undefined;
+          const description = String(row["תיאור"] || "").trim() || undefined;
+          await addSymptom(isPain ? "pain" : "nausea", description, level, timestamp);
           imported++;
         }
       }
@@ -156,7 +160,8 @@ export default function Home() {
     // Check category filter
     if (activeFilter !== "all") {
       if (activeFilter === "nausea" && (entry.type !== "symptom" || entry.symptomType !== "nausea")) return false;
-      if (activeFilter !== "nausea" && (entry.type !== "meal" || entry.category !== activeFilter)) return false;
+      if (activeFilter === "pain" && (entry.type !== "symptom" || entry.symptomType !== "pain")) return false;
+      if (activeFilter !== "nausea" && activeFilter !== "pain" && (entry.type !== "meal" || entry.category !== activeFilter)) return false;
     }
     
     // Check date filter
@@ -315,8 +320,11 @@ export default function Home() {
           <div className="md:col-span-2">
             <AddMealForm onAdd={loadEntries} />
           </div>
-          <div className="md:col-span-2">
+          <div className="md:col-span-1">
             <QuickNauseaButton onAdd={loadEntries} />
+          </div>
+          <div className="md:col-span-1">
+            <QuickPainButton onAdd={loadEntries} />
           </div>
         </div>
 

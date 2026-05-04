@@ -55,6 +55,7 @@ export interface DiaryEntry {
   mealItems?: string[];
   symptomType?: string;
   nauseaLevel?: number;
+  painLevel?: number;
   timestamp: number;
 }
 
@@ -127,7 +128,7 @@ export async function addMeal(
 export async function addSymptom(
   symptomType: string = 'nausea',
   description?: string,
-  nauseaLevel?: number,
+  level?: number,
   timestamp?: number
 ): Promise<string> {
   const uid = getUid();
@@ -135,7 +136,8 @@ export async function addSymptom(
     type: 'symptom',
     symptomType,
     description: description || null,
-    nauseaLevel: nauseaLevel ?? null,
+    nauseaLevel: symptomType === 'nausea' ? (level ?? null) : null,
+    painLevel: symptomType === 'pain' ? (level ?? null) : null,
     timestamp: timestamp || Date.now(),
   });
   return docRef.id;
