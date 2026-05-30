@@ -1,11 +1,17 @@
 "use client";
 
-import { useState } from "react";
-import { AlertCircle, X } from "lucide-react";
+import { useState, useEffect } from "react";
+import { AlertCircle, X, CalendarClock } from "lucide-react";
 import { addSymptom } from "@/lib/firebase";
 
 interface QuickNauseaButtonProps {
   onAdd: () => void;
+}
+
+function getLocalIsoString() {
+  const now = new Date();
+  now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+  return now.toISOString().slice(0, 16);
 }
 
 const LEVEL_LABELS = ["", "קלה", "קלה-בינונית", "בינונית", "חזקה", "חמורה מאוד"];
@@ -22,12 +28,20 @@ export default function QuickNauseaButton({ onAdd }: QuickNauseaButtonProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [selectedLevel, setSelectedLevel] = useState<number | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [timestampStr, setTimestampStr] = useState(getLocalIsoString());
+
+  useEffect(() => {
+    if (isOpen) {
+      setTimestampStr(getLocalIsoString());
+    }
+  }, [isOpen]);
 
   const handleSave = async () => {
     if (selectedLevel === null) return;
     setIsSubmitting(true);
     try {
-      await addSymptom("nausea", undefined, selectedLevel);
+      const timestamp = new Date(timestampStr).getTime();
+      await addSymptom("nausea", undefined, selectedLevel, timestamp);
       setIsOpen(false);
       setSelectedLevel(null);
       onAdd();
@@ -45,7 +59,7 @@ export default function QuickNauseaButton({ onAdd }: QuickNauseaButtonProps) {
         className="w-full py-4 px-6 bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 rounded-2xl flex items-center justify-center gap-3 text-red-600 dark:text-red-400 font-medium hover:bg-red-100 dark:hover:bg-red-500/20 transition-colors"
       >
         <AlertCircle className="w-5 h-5" />
-        <span>תיעוד בחילה (עכשיו)</span>
+        <span>תיעוד בחילה</span>
       </button>
     );
   }
@@ -63,6 +77,16 @@ export default function QuickNauseaButton({ onAdd }: QuickNauseaButtonProps) {
         >
           <X className="w-4 h-4" />
         </button>
+      </div>
+
+      <div className="flex items-center gap-2 bg-red-50/50 dark:bg-slate-900 border border-red-200 dark:border-red-500/30 rounded-xl px-3 py-2 mb-4">
+        <CalendarClock className="w-5 h-5 text-red-400" />
+        <input 
+          type="datetime-local" 
+          value={timestampStr}
+          onChange={(e) => setTimestampStr(e.target.value)}
+          className="bg-transparent border-none focus:ring-0 text-slate-700 dark:text-slate-200 text-sm w-full outline-none"
+        />
       </div>
 
       <div className="flex gap-2 mb-4">

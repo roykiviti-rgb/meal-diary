@@ -1,11 +1,17 @@
 "use client";
 
-import { useState } from "react";
-import { Activity, X } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Activity, X, CalendarClock } from "lucide-react";
 import { addSymptom } from "@/lib/firebase";
 
 interface QuickPainButtonProps {
   onAdd: () => void;
+}
+
+function getLocalIsoString() {
+  const now = new Date();
+  now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+  return now.toISOString().slice(0, 16);
 }
 
 const LEVEL_LABELS = ["", "קל", "קל-בינוני", "בינוני", "חזק", "בלתי נסבל"];
@@ -23,12 +29,20 @@ export default function QuickPainButton({ onAdd }: QuickPainButtonProps) {
   const [selectedLevel, setSelectedLevel] = useState<number | null>(null);
   const [description, setDescription] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [timestampStr, setTimestampStr] = useState(getLocalIsoString());
+
+  useEffect(() => {
+    if (isOpen) {
+      setTimestampStr(getLocalIsoString());
+    }
+  }, [isOpen]);
 
   const handleSave = async () => {
     if (selectedLevel === null) return;
     setIsSubmitting(true);
     try {
-      await addSymptom("pain", description.trim() || undefined, selectedLevel);
+      const timestamp = new Date(timestampStr).getTime();
+      await addSymptom("pain", description.trim() || undefined, selectedLevel, timestamp);
       setIsOpen(false);
       setSelectedLevel(null);
       setDescription("");
@@ -47,7 +61,7 @@ export default function QuickPainButton({ onAdd }: QuickPainButtonProps) {
         className="w-full py-4 px-6 bg-orange-50 dark:bg-orange-500/10 border border-orange-200 dark:border-orange-500/20 rounded-2xl flex items-center justify-center gap-3 text-orange-600 dark:text-orange-400 font-medium hover:bg-orange-100 dark:hover:bg-orange-500/20 transition-colors"
       >
         <Activity className="w-5 h-5" />
-        <span>תיעוד כאב (עכשיו)</span>
+        <span>תיעוד כאב</span>
       </button>
     );
   }
@@ -65,6 +79,16 @@ export default function QuickPainButton({ onAdd }: QuickPainButtonProps) {
         >
           <X className="w-4 h-4" />
         </button>
+      </div>
+
+      <div className="flex items-center gap-2 bg-orange-50/50 dark:bg-slate-900 border border-orange-200 dark:border-orange-500/30 rounded-xl px-3 py-2 mb-4">
+        <CalendarClock className="w-5 h-5 text-orange-400" />
+        <input 
+          type="datetime-local" 
+          value={timestampStr}
+          onChange={(e) => setTimestampStr(e.target.value)}
+          className="bg-transparent border-none focus:ring-0 text-slate-700 dark:text-slate-200 text-sm w-full outline-none"
+        />
       </div>
 
       <div className="flex gap-2 mb-4">
