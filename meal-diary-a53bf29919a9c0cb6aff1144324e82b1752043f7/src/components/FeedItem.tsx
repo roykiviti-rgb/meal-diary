@@ -1,0 +1,117 @@
+"use client";
+
+import { Clock, Utensils, AlertCircle, Activity, Trash2, CheckCircle2 } from "lucide-react";
+import { type DiaryEntry, deleteEntry } from "@/lib/firebase";
+
+interface FeedItemProps {
+  entry: DiaryEntry;
+  onDelete: () => void;
+}
+
+export default function FeedItem({ entry, onDelete }: FeedItemProps) {
+  const isMeal = entry.type === "meal";
+  const isNausea = entry.type === "symptom" && entry.symptomType === "nausea";
+  const isPain = entry.type === "symptom" && entry.symptomType === "pain";
+
+  const handleDelete = async () => {
+    if (!entry.id) return;
+    if (confirm("האם ברצונך למחוק רשומה זו?")) {
+      await deleteEntry(entry.id as string);
+      onDelete();
+    }
+  };
+
+  const timeString = new Date(entry.timestamp).toLocaleTimeString("he-IL", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+
+  const categoryLabels: Record<string, string> = {
+    breakfast: "בוקר",
+    lunch: "צהריים",
+    dinner: "ערב",
+    snack: "נשנוש",
+  };
+
+  return (
+    <div className="relative bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 p-4 mb-4 overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-300">
+      <div className="flex justify-between items-start mb-3">
+        <div className="flex items-center gap-2">
+          <div
+            className={`p-2 rounded-full ${
+              isMeal
+                ? "bg-indigo-100 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400"
+                : isPain
+                ? "bg-orange-100 dark:bg-orange-500/20 text-orange-600 dark:text-orange-400"
+                : "bg-red-100 dark:bg-red-500/20 text-red-600 dark:text-red-400"
+            }`}
+          >
+            {isMeal ? <Utensils className="w-4 h-4" /> : isPain ? <Activity className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
+          </div>
+          <div>
+            <h4 className="font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+              {isMeal
+                ? `ארוחת ${categoryLabels[entry.category || "snack"]}`
+                : isPain
+                ? "כאב"
+                : "בחילה"}
+              {!isMeal && entry.nauseaLevel && (
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-red-100 dark:bg-red-500/20 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-500/30">
+                  עוצמה {entry.nauseaLevel}/5
+                </span>
+              )}
+              {!isMeal && entry.painLevel && (
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-orange-100 dark:bg-orange-500/20 text-orange-700 dark:text-orange-400 border border-orange-200 dark:border-orange-500/30">
+                  עוצמה {entry.painLevel}/5
+                </span>
+              )}
+            </h4>
+            <div className="flex items-center text-xs text-slate-500 dark:text-slate-400 mt-0.5 gap-1">
+              <Clock className="w-3 h-3" />
+              <span>{timeString}</span>
+            </div>
+          </div>
+        </div>
+        
+        <button
+          onClick={handleDelete}
+          className="text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 p-1.5 rounded-full transition-colors"
+          title="מחק רשומה"
+        >
+          <Trash2 className="w-4 h-4" />
+        </button>
+      </div>
+
+      {entry.mealItems && entry.mealItems.length > 0 && (
+        <div className="flex flex-wrap gap-2 mb-3">
+          {entry.mealItems.map((item, idx) => (
+            <span 
+              key={idx} 
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 text-xs font-medium border border-emerald-200 dark:border-emerald-500/20"
+            >
+              <CheckCircle2 className="w-3 h-3" />
+              {item}
+            </span>
+          ))}
+        </div>
+      )}
+
+      {entry.description && (
+        <p className="text-slate-600 dark:text-slate-300 text-sm mt-2 mb-3 leading-relaxed">
+          {entry.description}
+        </p>
+      )}
+
+      {(entry.imageUrl || entry.imageBase64) && (
+        <div className="mt-3 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={entry.imageUrl || entry.imageBase64}
+            alt="תמונת ארוחה"
+            className="w-full max-h-64 object-cover"
+          />
+        </div>
+      )}
+    </div>
+  );
+}
