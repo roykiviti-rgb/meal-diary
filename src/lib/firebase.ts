@@ -82,8 +82,7 @@ export function getUid(): string {
 
 // ---- Firestore helpers ----
 function entriesCol(uid: string) {
-  // Use the root 'entries' collection where the existing data is stored
-  return collection(db, 'entries');
+  return collection(db, 'users', uid, 'entries');
 }
 
 // Upload a base64 image to Firebase Storage and return the download URL.
@@ -156,7 +155,7 @@ export async function getAllEntries(): Promise<DiaryEntry[]> {
 
 export async function deleteEntry(id: string): Promise<void> {
   const uid = getUid();
-  await deleteDoc(doc(db, 'entries', id));
+  await deleteDoc(doc(db, 'users', uid, 'entries', id));
   // Silently try to remove the image from Storage too
   try {
     await deleteObject(ref(storage, `users/${uid}/images/${id}`));
